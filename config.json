@@ -1,0 +1,25 @@
+{
+  "db_type": "postgres",
+  "postgres": {
+    "host": "127.0.0.1",
+    "port": 5432,
+    "user": "mrafnb",
+    "password": "fnb@2031mra",
+    "database": "pos_emerald"
+  },
+  "mysql": {
+    "host": "127.0.0.1",
+    "port": 3306,
+    "user": "root",
+    "password": "",
+    "database": "pos_emerald",
+    "charset": "utf8mb4"
+  },
+  "importer": {
+    "source_directory": ".",
+    "file_patterns": ["*.xls", "*.xlsx"],
+    "batch_size": 2000,
+    "skip_already_imported": true,
+    "auto_create_schema": true
+  }
+}

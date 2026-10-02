@@ -1,0 +1,161 @@
+-- ========================================================================
+-- DATABASE SCHEMA: pos_emerald
+-- Deskripsi: Skema basis data untuk Ingestion Engine POS & BackOffice HGD
+-- Target Environment: Laragon MySQL / MariaDB (127.0.0.1:3306)
+-- ========================================================================
+
+CREATE DATABASE IF NOT EXISTS pos_emerald 
+CHARACTER SET utf8mb4 
+COLLATE utf8mb4_unicode_ci;
+
+USE pos_emerald;
+
+-- ------------------------------------------------------------------------
+-- 1. Tabel Log File yang Diimpor (Track Idempotensi & Riwayat File)
+-- ------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS imported_files (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    file_name VARCHAR(255) NOT NULL UNIQUE,
+    file_path TEXT NOT NULL,
+    file_size BIGINT NOT NULL,
+    file_hash VARCHAR(64) NOT NULL,
+    batch_code VARCHAR(50) NULL,
+    period_from DATE NULL,
+    period_to DATE NULL,
+    total_rows INT DEFAULT 0,
+    total_debet DECIMAL(18, 2) DEFAULT 0.00,
+    total_credit DECIMAL(18, 2) DEFAULT 0.00,
+    status ENUM('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED') DEFAULT 'PENDING',
+    duration_seconds FLOAT DEFAULT 0.0,
+    error_message TEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_file_hash (file_hash),
+    INDEX idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------
+-- 2. Tabel Master Chart of Accounts (COA)
+-- ------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS chart_of_accounts (
+    account_code VARCHAR(20) PRIMARY KEY,
+    account_name VARCHAR(255) NOT NULL,
+    account_series VARCHAR(10) NOT NULL,
+    account_category VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_series (account_series),
+    INDEX idx_category (account_category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------
+-- 3. Tabel Master Lokasi / Outlet
+-- ------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS outlets (
+    location_name VARCHAR(150) PRIMARY KEY,
+    outlet_type VARCHAR(50) NOT NULL DEFAULT 'OTHER',
+    city VARCHAR(100) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_outlet_type (outlet_type),
+    INDEX idx_city (city)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------
+-- 4. Tabel Transaksi Buku Besar & POS (Main Ledger)
+-- ------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS pos_transactions (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    file_id INT NOT NULL,
+    source_file VARCHAR(255) NOT NULL,
+    row_index INT NOT NULL,
+    trx_date DATE NULL,
+    period_ym VARCHAR(7) NULL,
+    account_code VARCHAR(20) NOT NULL,
+    account_name VARCHAR(255) NOT NULL,
+    trx_no VARCHAR(100) NULL,
+    trx_type VARCHAR(50) NOT NULL,
+    description TEXT NULL,
+    item_name VARCHAR(255) NULL,
+    quantity INT DEFAULT 1,
+    location_name VARCHAR(150) NULL,
+    notes TEXT NULL,
+    user_create VARCHAR(50) NULL,
+    debet DECIMAL(18, 2) DEFAULT 0.00,
+    credit DECIMAL(18, 2) DEFAULT 0.00,
+    net_amount DECIMAL(18, 2) DEFAULT 0.00,
+    ending_balance DECIMAL(18, 2) NULL,
+    docno VARCHAR(100) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (file_id) REFERENCES imported_files(id) ON DELETE CASCADE,
+    INDEX idx_trx_date (trx_date),
+    INDEX idx_period_ym (period_ym),
+    INDEX idx_account_code (account_code),
+    INDEX idx_trx_no (trx_no),
+    INDEX idx_trx_type (trx_type),
+    INDEX idx_location_name (location_name),
+    INDEX idx_item_name (item_name),
+    INDEX idx_user_create (user_create),
+    INDEX idx_source_file_row (source_file, row_index)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------------
+-- 5. Views untuk Reporting & Analitik Cepat
+-- ------------------------------------------------------------------------
+
+-- A. Ringkasan HPP Produk Jadi POS
+CREATE OR REPLACE VIEW v_pos_cogs_summary AS
+SELECT 
+    period_ym,
+    location_name,
+    account_code,
+    account_name,
+    item_name,
+    SUM(quantity) AS total_qty,
+    SUM(debet) AS total_cogs_idr,
+    COUNT(*) AS total_trx
+FROM pos_transactions
+WHERE trx_type IN ('POSSTOCK_REGULAR', 'POSSTOCK_COND')
+GROUP BY period_ym, location_name, account_code, account_name, item_name;
+
+-- B. Ringkasan Diskon Penjualan POS (Sales Invoices)
+CREATE OR REPLACE VIEW v_pos_sales_discount_summary AS
+SELECT 
+    period_ym,
+    trx_date,
+    location_name,
+    item_name,
+    SUM(quantity) AS total_qty_sold,
+    SUM(debet) AS total_discount_idr,
+    COUNT(*) AS total_records
+FROM pos_transactions
+WHERE trx_type = 'SALES_INVOICE_SI'
+GROUP BY period_ym, trx_date, location_name, item_name;
+
+-- C. Rekapitulasi Biaya Komisi Kartu Kredit (EDC MDR)
+CREATE OR REPLACE VIEW v_edc_card_commissions AS
+SELECT 
+    period_ym,
+    location_name,
+    description AS payment_channel,
+    user_create,
+    SUM(debet) AS total_commission_idr,
+    COUNT(*) AS total_settlements
+FROM pos_transactions
+WHERE account_code = '8300.04.01'
+GROUP BY period_ym, location_name, description, user_create;
+
+-- D. Ringkasan Kinerja Bulanan per Outlet
+CREATE OR REPLACE VIEW v_outlet_monthly_performance AS
+SELECT 
+    t.period_ym,
+    t.location_name,
+    o.outlet_type,
+    o.city,
+    COUNT(*) AS total_rows,
+    SUM(CASE WHEN t.trx_type LIKE 'POSSTOCK%' THEN t.debet ELSE 0 END) AS total_pos_cogs,
+    SUM(CASE WHEN t.trx_type = 'SALES_INVOICE_SI' THEN t.debet ELSE 0 END) AS total_sales_discount,
+    SUM(CASE WHEN t.account_code = '8300.04.01' THEN t.debet ELSE 0 END) AS total_card_commission
+FROM pos_transactions t
+LEFT JOIN outlets o ON t.location_name = o.location_name
+GROUP BY t.period_ym, t.location_name, o.outlet_type, o.city;

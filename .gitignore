@@ -1,0 +1,42 @@
+# Database dumps & large archives (>100MB strictly rejected by GitHub)
+*.dump
+*.sql.gz
+pos_emerald_backup.dump
+
+# Excel source data files (kept locally & in cloud storage)
+2018/
+2019/
+2020/
+2021/
+2022/
+2023/
+2024/
+2025/
+*.xls
+*.xlsx
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+.venv/
+venv/
+ENV/
+*.log
+
+# Node & Next.js
+node_modules/
+web/node_modules/
+.next/
+web/.next/
+web/out/
+web/.env*.local
+*.tsbuildinfo
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+scratch/
