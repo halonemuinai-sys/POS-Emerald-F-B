@@ -22,11 +22,25 @@ import {
   X,
   HardDrive,
   Copy,
-  Calendar
+  Calendar,
+  PieChart,
+  Scale,
+  Receipt,
+  DollarSign,
+  ArrowDownRight,
+  Percent
 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'files' | 'outlets' | 'coa'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'financial' | 'transactions' | 'files' | 'outlets' | 'coa'>('overview');
+  
+  // Financial State
+  const [financialYear, setFinancialYear] = useState('2023');
+  const [financialSubTab, setFinancialSubTab] = useState<'pl' | 'bs' | 'trend' | 'tb'>('pl');
+  const [financialData, setFinancialData] = useState<any>(null);
+  const [financialLoading, setFinancialLoading] = useState(false);
+  const [tbSearch, setTbSearch] = useState('');
+  const [tbSeriesFilter, setTbSeriesFilter] = useState('');
   
   // Stats State
   const [stats, setStats] = useState<any>(null);
@@ -76,10 +90,32 @@ export default function DashboardPage() {
       fetchFiles();
       fetchFolders();
     }
+    if (activeTab === 'financial') fetchFinancial(financialYear);
     if (activeTab === 'transactions') fetchTransactions();
     if (activeTab === 'outlets') fetchOutlets();
     if (activeTab === 'coa') fetchCoas();
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'financial') {
+      fetchFinancial(financialYear);
+    }
+  }, [financialYear]);
+
+  const fetchFinancial = async (year = financialYear) => {
+    setFinancialLoading(true);
+    try {
+      const res = await fetch(`/api/financial?year=${year}`);
+      const data = await res.json();
+      if (data.success) {
+        setFinancialData(data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching financial data:', err);
+    } finally {
+      setFinancialLoading(false);
+    }
+  };
 
   // Refetch transactions on filter change
   useEffect(() => {
@@ -313,6 +349,18 @@ export default function DashboardPage() {
             </button>
 
             <button
+              onClick={() => setActiveTab('financial')}
+              className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                activeTab === 'financial'
+                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+            >
+              <TrendingUp className="w-4 h-4 text-emerald-300" />
+              <span>Laporan Finansial (P&L & BS)</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('files')}
               className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 activeTab === 'files'
@@ -321,7 +369,7 @@ export default function DashboardPage() {
               }`}
             >
               <FileUp className="w-4 h-4" />
-              <span>Folder 2018-2023 & Sync</span>
+              <span>Folder 2018-2024 & Sync</span>
             </button>
 
             <button
@@ -382,10 +430,11 @@ export default function DashboardPage() {
           <div>
             <h2 className="text-lg font-bold text-slate-800">
               {activeTab === 'overview' && 'Cockpit Analitik & Ringkasan Eksekutif'}
+              {activeTab === 'financial' && 'Laporan Finansial: Laba Rugi (P&L), Neraca (Balance Sheet) & Trend'}
               {activeTab === 'transactions' && 'Penjelajah Buku Besar & Transaksi POS'}
-              {activeTab === 'files' && 'Manajemen Folder Tahun (2018-2023) & File Sync'}
-              {activeTab === 'outlets' && 'Performa 116 Outlet & Cabang Ritel'}
-              {activeTab === 'coa' && 'Bagan Akun Standar (646 COA Master)'}
+              {activeTab === 'files' && 'Manajemen Folder Tahun (2018-2024) & File Sync'}
+              {activeTab === 'outlets' && 'Performa 138 Outlet & Cabang Ritel'}
+              {activeTab === 'coa' && 'Bagan Akun Standar (647 COA Master)'}
             </h2>
             <p className="text-xs text-slate-500">PT. Rahayu Arumdhani International • Häagen-Dazs Indonesia</p>
           </div>
@@ -511,6 +560,510 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* TAB: FINANCIAL REPORTS (P&L, BALANCE SHEET, TRIAL BALANCE) */}
+          {activeTab === 'financial' && (
+            <div className="space-y-6">
+              {/* Year Selector & View Controls Bar */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <span className="p-2 rounded-lg bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center gap-1">
+                      <TrendingUp className="w-4 h-4" /> Financial Cockpit
+                    </span>
+                    <h3 className="text-base font-bold text-slate-900">Laporan Keuangan Häagen-Dazs Indonesia</h3>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Konsolidasi Laporan Laba Rugi (P&L), Neraca (Balance Sheet) & Neraca Saldo Buku Besar
+                  </p>
+                </div>
+
+                {/* Filter per Tahun */}
+                <div className="flex items-center space-x-2 bg-slate-100 p-1 rounded-xl">
+                  {['2024', '2023', '2022', '2021', '2020', '2019', '2018', 'ALL'].map((yr) => (
+                    <button
+                      key={yr}
+                      onClick={() => setFinancialYear(yr)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        financialYear === yr
+                          ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+                      }`}
+                    >
+                      {yr === 'ALL' ? 'Semua Tahun' : yr}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sub-Tab Navigation Bar */}
+              <div className="flex items-center space-x-2 border-b border-slate-200 pb-2">
+                <button
+                  onClick={() => setFinancialSubTab('pl')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+                    financialSubTab === 'pl'
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Laporan Laba Rugi (P&L)</span>
+                </button>
+
+                <button
+                  onClick={() => setFinancialSubTab('bs')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+                    financialSubTab === 'bs'
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  <Scale className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Neraca Keuangan (Balance Sheet)</span>
+                </button>
+
+                <button
+                  onClick={() => setFinancialSubTab('trend')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+                    financialSubTab === 'trend'
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  <BarChart3 className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Tren Bulanan & Analisis Margin</span>
+                </button>
+
+                <button
+                  onClick={() => setFinancialSubTab('tb')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+                    financialSubTab === 'tb'
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  <Receipt className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Neraca Saldo Akun (Trial Balance)</span>
+                </button>
+
+                {financialLoading && (
+                  <span className="text-xs text-emerald-600 flex items-center space-x-1 animate-pulse ml-auto">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Memuat data finansial...</span>
+                  </span>
+                )}
+              </div>
+
+              {/* SUBTAB 1: PROFIT & LOSS (LABA RUGI) */}
+              {financialSubTab === 'pl' && financialData && (
+                <div className="space-y-6">
+                  {/* Executive KPI Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase">
+                        <span>Penjualan Bersih (Net)</span>
+                        <DollarSign className="w-4 h-4 text-emerald-600" />
+                      </div>
+                      <h4 className="text-xl font-black text-slate-900 mt-1">
+                        {formatIDR(financialData.pl.net_sales)}
+                      </h4>
+                      {financialData.yoy && (
+                        <div className="flex items-center space-x-1 mt-1 text-[11px] font-bold">
+                          <span className={financialData.yoy.revenueGrowth >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+                            {financialData.yoy.revenueGrowth >= 0 ? '▲ +' : '▼ '}
+                            {financialData.yoy.revenueGrowth.toFixed(1)}% YoY
+                          </span>
+                          <span className="text-slate-400">vs {financialData.yoy.priorYear}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase">
+                        <span>Laba Kotor (GP)</span>
+                        <TrendingUp className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <h4 className="text-xl font-black text-blue-700 mt-1">
+                        {formatIDR(financialData.pl.gross_profit)}
+                      </h4>
+                      <p className="text-xs font-bold text-blue-600 mt-1">
+                        Margin GP: {financialData.pl.gp_margin.toFixed(1)}%
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase">
+                        <span>Beban Operasional (OPEX)</span>
+                        <ArrowDownRight className="w-4 h-4 text-amber-600" />
+                      </div>
+                      <h4 className="text-xl font-black text-amber-700 mt-1">
+                        {formatIDR(financialData.pl.total_opex)}
+                      </h4>
+                      <p className="text-xs text-slate-500 mt-1">
+                        OPEX %: {((financialData.pl.total_opex / financialData.pl.net_sales) * 100).toFixed(1)}% of Sales
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between text-slate-500 text-xs font-semibold uppercase">
+                        <span>Laba Usaha (EBIT)</span>
+                        <Percent className="w-4 h-4 text-indigo-600" />
+                      </div>
+                      <h4 className={`text-xl font-black mt-1 ${financialData.pl.ebit >= 0 ? 'text-indigo-700' : 'text-rose-600'}`}>
+                        {formatIDR(financialData.pl.ebit)}
+                      </h4>
+                      <p className="text-xs font-bold text-slate-500 mt-1">
+                        EBIT Margin: {financialData.pl.ebit_margin.toFixed(1)}%
+                      </p>
+                    </div>
+
+                    <div className="bg-gradient-to-tr from-slate-900 to-emerald-950 p-4 rounded-xl text-white shadow-md">
+                      <div className="flex items-center justify-between text-slate-300 text-xs font-semibold uppercase">
+                        <span>Laba Bersih (NPBT)</span>
+                        <Scale className="w-4 h-4 text-emerald-400" />
+                      </div>
+                      <h4 className={`text-xl font-black mt-1 ${financialData.pl.npbt >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {formatIDR(financialData.pl.npbt)}
+                      </h4>
+                      <p className="text-xs text-slate-300 mt-1 font-medium">
+                        Net Margin: {financialData.pl.npbt_margin.toFixed(1)}%
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Structured Corporate P&L Waterfall Table */}
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+                      <div>
+                        <h4 className="font-bold text-sm">LAPORAN LABA RUGI (PROFIT & LOSS STATEMENT)</h4>
+                        <p className="text-xs text-slate-400">Periode: Tahun {financialYear === 'ALL' ? '2018 - 2024 (Konsolidasi)' : financialYear} • Mata Uang: IDR (Rupiah)</p>
+                      </div>
+                      <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30">
+                        Standar Keuangan IFRS / PSAK
+                      </span>
+                    </div>
+
+                    <div className="divide-y divide-slate-100 text-xs">
+                      {/* I. PENDAPATAN */}
+                      <div className="bg-slate-50/80 px-4 py-2 font-bold text-slate-700 uppercase tracking-wider text-[11px]">
+                        I. PENDAPATAN USAHA (REVENUE)
+                      </div>
+                      <div className="flex justify-between px-6 py-2.5 hover:bg-slate-50">
+                        <span className="text-slate-700 font-medium">Penjualan Kotor Kasir & Backoffice (Gross Sales)</span>
+                        <span className="font-mono text-slate-900 font-semibold">{formatIDR(financialData.pl.gross_sales)}</span>
+                      </div>
+                      <div className="flex justify-between px-6 py-2.5 hover:bg-slate-50 text-rose-600">
+                        <span className="font-medium">Potongan & Diskon Penjualan (Sales Discounts - Seri 5000)</span>
+                        <span className="font-mono font-semibold">({formatIDR(financialData.pl.sales_discounts)})</span>
+                      </div>
+                      <div className="flex justify-between px-4 py-3 bg-emerald-50/60 text-emerald-950 font-bold border-y border-emerald-200">
+                        <span>TOTAL PENJUALAN BERSIH (NET REVENUE)</span>
+                        <span className="font-mono text-sm">{formatIDR(financialData.pl.net_sales)}</span>
+                      </div>
+
+                      {/* II. BEBAN POKOK PENJUALAN */}
+                      <div className="bg-slate-50/80 px-4 py-2 font-bold text-slate-700 uppercase tracking-wider text-[11px]">
+                        II. HARGA POKOK PENJUALAN (COGS / HPP)
+                      </div>
+                      <div className="flex justify-between px-6 py-2.5 hover:bg-slate-50 text-slate-700">
+                        <span>HPP Es Krim Cafe & Menu Olahan (Bahan Baku, Cup, Packaging - Seri 7000 Cafe)</span>
+                        <span className="font-mono font-semibold">{formatIDR(financialData.pl.cogs_cafe)}</span>
+                      </div>
+                      <div className="flex justify-between px-6 py-2.5 hover:bg-slate-50 text-slate-700">
+                        <span>HPP Penjualan Barang Retail (Seri 7000 Retail)</span>
+                        <span className="font-mono font-semibold">{formatIDR(financialData.pl.cogs_retail)}</span>
+                      </div>
+                      <div className="flex justify-between px-4 py-2.5 bg-rose-50/60 text-rose-950 font-bold border-y border-rose-200">
+                        <span>TOTAL HARGA POKOK PENJUALAN (TOTAL COGS)</span>
+                        <span className="font-mono">{formatIDR(financialData.pl.total_cogs)}</span>
+                      </div>
+
+                      {/* LABA KOTOR */}
+                      <div className="flex justify-between items-center px-4 py-3.5 bg-emerald-600 text-white font-bold text-sm shadow-inner">
+                        <div className="flex items-center space-x-2">
+                          <span>LABA KOTOR (GROSS PROFIT)</span>
+                          <span className="px-2 py-0.5 rounded text-[11px] bg-white/20 text-white font-semibold">
+                            Margin GP: {financialData.pl.gp_margin.toFixed(1)}%
+                          </span>
+                        </div>
+                        <span className="font-mono text-base">{formatIDR(financialData.pl.gross_profit)}</span>
+                      </div>
+
+                      {/* III. BEBAN OPERASIONAL */}
+                      <div className="bg-slate-50/80 px-4 py-2 font-bold text-slate-700 uppercase tracking-wider text-[11px]">
+                        III. BEBAN OPERASIONAL (OPERATING EXPENSES / OPEX)
+                      </div>
+                      <div className="flex justify-between px-6 py-2.5 hover:bg-slate-50 text-slate-700">
+                        <span>Beban Gaji, Upah & Tunjangan Karyawan (Seri 8100)</span>
+                        <span className="font-mono font-semibold">{formatIDR(financialData.pl.opex_personnel)}</span>
+                      </div>
+                      <div className="flex justify-between px-6 py-2.5 hover:bg-slate-50 text-slate-700">
+                        <span>Beban Pemasaran & Promosi (Seri 8200)</span>
+                        <span className="font-mono font-semibold">{formatIDR(financialData.pl.opex_marketing)}</span>
+                      </div>
+                      <div className="flex justify-between px-6 py-2.5 hover:bg-slate-50 text-slate-700">
+                        <span>Beban Umum & Administrasi / Sewa Outlet Mall & Utilitas (Seri 8300)</span>
+                        <span className="font-mono font-semibold">{formatIDR(financialData.pl.opex_ga)}</span>
+                      </div>
+                      <div className="flex justify-between px-6 py-2.5 hover:bg-slate-50 text-purple-700">
+                        <span>Komisi EDC Bank & Merchant Discount Rate (MDR - Akun 8300.04.01)</span>
+                        <span className="font-mono font-semibold">{formatIDR(financialData.pl.opex_card_comm)}</span>
+                      </div>
+                      <div className="flex justify-between px-6 py-2.5 hover:bg-slate-50 text-slate-700">
+                        <span>Beban Penyusutan Aset Tetap & Amortisasi (Seri 8400)</span>
+                        <span className="font-mono font-semibold">{formatIDR(financialData.pl.opex_depreciation)}</span>
+                      </div>
+                      <div className="flex justify-between px-6 py-2.5 hover:bg-slate-50 text-slate-700">
+                        <span>Biaya Manajemen Holding MRA (Holding Fee - Seri 9000)</span>
+                        <span className="font-mono font-semibold">{formatIDR(financialData.pl.opex_mgmt_fee)}</span>
+                      </div>
+                      <div className="flex justify-between px-6 py-2.5 hover:bg-slate-50 text-slate-700">
+                        <span>Beban Operasional Lainnya (Seri 8000)</span>
+                        <span className="font-mono font-semibold">{formatIDR(financialData.pl.opex_other)}</span>
+                      </div>
+                      <div className="flex justify-between px-4 py-2.5 bg-amber-50/70 text-amber-950 font-bold border-y border-amber-200">
+                        <span>TOTAL BEBAN OPERASIONAL (TOTAL OPEX)</span>
+                        <span className="font-mono">{formatIDR(financialData.pl.total_opex)}</span>
+                      </div>
+
+                      {/* LABA USAHA / EBIT */}
+                      <div className="flex justify-between items-center px-4 py-3 bg-indigo-50 text-indigo-950 font-bold border-y border-indigo-200">
+                        <div className="flex items-center space-x-2">
+                          <span>LABA USAHA / OPERATING PROFIT (EBIT)</span>
+                          <span className="px-2 py-0.5 rounded text-[11px] bg-indigo-200 text-indigo-900 font-semibold">
+                            EBIT Margin: {financialData.pl.ebit_margin.toFixed(1)}%
+                          </span>
+                        </div>
+                        <span className={`font-mono text-sm ${financialData.pl.ebit >= 0 ? 'text-indigo-900' : 'text-rose-600'}`}>
+                          {formatIDR(financialData.pl.ebit)}
+                        </span>
+                      </div>
+
+                      {/* IV. PENDAPATAN & BEBAN LAIN */}
+                      <div className="bg-slate-50/80 px-4 py-2 font-bold text-slate-700 uppercase tracking-wider text-[11px]">
+                        IV. PENDAPATAN / (BEBAN) LAIN-LAIN
+                      </div>
+                      <div className="flex justify-between px-6 py-2.5 hover:bg-slate-50 text-slate-700">
+                        <span>Pendapatan / (Beban) Lain-lain Bersih (Bunga, Kurs, Pajak - Seri 8500)</span>
+                        <span className="font-mono font-semibold">{formatIDR(financialData.pl.other_income_exp)}</span>
+                      </div>
+
+                      {/* LABA BERSIH SEBELUM PAJAK (NPBT) */}
+                      <div className="flex justify-between items-center px-6 py-4 bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 text-white font-bold text-sm">
+                        <div>
+                          <div className="text-emerald-400 text-xs font-semibold">BOTTOM LINE PROFITABILITY</div>
+                          <span className="text-base">LABA BERSIH SEBELUM PAJAK (NPBT)</span>
+                        </div>
+                        <div className="text-right">
+                          <span className={`font-mono text-xl ${financialData.pl.npbt >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {formatIDR(financialData.pl.npbt)}
+                          </span>
+                          <div className="text-xs text-slate-300">
+                            Net Margin: {financialData.pl.npbt_margin.toFixed(1)}%
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB 2: BALANCE SHEET (NERACA) */}
+              {financialSubTab === 'bs' && financialData && (
+                <div className="space-y-6">
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between">
+                    <div>
+                      <h4 className="font-bold text-sm text-slate-900">NERACA KEUANGAN (BALANCE SHEET STATEMENT)</h4>
+                      <p className="text-xs text-slate-500">Posisi Per Akhir Tahun {financialYear === 'ALL' ? 'Terakhir' : financialYear} • Berdasarkan Buku Besar Häagen-Dazs</p>
+                    </div>
+                    <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-bold border border-blue-200">
+                      Saldo Terverifikasi
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* SISI KIRI: AKTIVA (ASSETS) */}
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                      <div className="bg-blue-600 text-white px-5 py-3 font-bold text-sm flex items-center justify-between">
+                        <span>AKTIVA (ASSETS)</span>
+                        <span className="text-xs bg-white/20 px-2 py-0.5 rounded font-normal">Seri 1000</span>
+                      </div>
+                      <div className="p-4 space-y-3 text-xs">
+                        <div className="flex justify-between py-2 border-b border-slate-100">
+                          <span className="text-slate-700 font-medium">Kas & Setara Kas / Bank (Petty Cash Cafe & Bank)</span>
+                          <span className="font-mono font-bold text-slate-900">{formatIDR(financialData.balanceSheet.cash_bank)}</span>
+                        </div>
+                        <div className="flex justify-between py-2 border-b border-slate-100">
+                          <span className="text-slate-700 font-medium">Piutang Usaha & Persediaan (Stock Es Krim & Bahan)</span>
+                          <span className="font-mono font-bold text-slate-900">{formatIDR(financialData.balanceSheet.receivables_inventory)}</span>
+                        </div>
+                        <div className="flex justify-between py-3 bg-blue-50/70 px-3 rounded-xl font-bold text-blue-950 text-sm mt-4">
+                          <span>TOTAL AKTIVA (TOTAL ASSETS)</span>
+                          <span className="font-mono">{formatIDR(financialData.balanceSheet.total_assets)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* SISI KANAN: KEWAJIBAN & EKUITAS (LIABILITIES & EQUITY) */}
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                      <div className="bg-purple-700 text-white px-5 py-3 font-bold text-sm flex items-center justify-between">
+                        <span>KEWAJIBAN & EKUITAS (LIABILITIES & EQUITY)</span>
+                        <span className="text-xs bg-white/20 px-2 py-0.5 rounded font-normal">Seri 2000 & 3000</span>
+                      </div>
+                      <div className="p-4 space-y-3 text-xs">
+                        <div className="font-bold text-slate-500 uppercase text-[10px] tracking-wider">A. Kewajiban (Liabilities)</div>
+                        <div className="flex justify-between py-1.5 border-b border-slate-100 pl-2">
+                          <span className="text-slate-700 font-medium">Hutang Usaha / Accounts Payable (Seri 2100)</span>
+                          <span className="font-mono font-bold text-slate-900">{formatIDR(financialData.balanceSheet.liabilities_ap)}</span>
+                        </div>
+                        <div className="flex justify-between py-1.5 border-b border-slate-100 pl-2">
+                          <span className="text-slate-700 font-medium">Hutang Pajak & Beban Akrual Lainnya</span>
+                          <span className="font-mono font-bold text-slate-900">{formatIDR(financialData.balanceSheet.liabilities_other)}</span>
+                        </div>
+                        <div className="flex justify-between py-2 bg-slate-50 px-3 rounded-lg font-bold text-slate-800">
+                          <span>Total Kewajiban</span>
+                          <span className="font-mono">{formatIDR(financialData.balanceSheet.total_liabilities)}</span>
+                        </div>
+
+                        <div className="font-bold text-slate-500 uppercase text-[10px] tracking-wider pt-2">B. Ekuitas (Equity)</div>
+                        <div className="flex justify-between py-1.5 border-b border-slate-100 pl-2">
+                          <span className="text-slate-700 font-medium">Modal Saham & Laba Ditahan (Seri 3100)</span>
+                          <span className="font-mono font-bold text-slate-900">{formatIDR(financialData.balanceSheet.equity)}</span>
+                        </div>
+
+                        <div className="flex justify-between py-3 bg-purple-50/70 px-3 rounded-xl font-bold text-purple-950 text-sm mt-4">
+                          <span>TOTAL KEWAJIBAN & EKUITAS</span>
+                          <span className="font-mono">{formatIDR(financialData.balanceSheet.total_liabilities_and_equity)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB 3: TREN BULANAN & MARGIN */}
+              {financialSubTab === 'trend' && financialData && (
+                <div className="space-y-4">
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 flex items-center justify-between">
+                    <div>
+                      <h4 className="font-bold text-sm text-slate-900">TREN KINERJA KEUANGAN BULANAN (JAN - DES {financialYear})</h4>
+                      <p className="text-xs text-slate-500">Pergerakan Penjualan Bersih, HPP, Laba Kotor, dan Beban Operasional</p>
+                    </div>
+                    <span className="text-xs text-slate-500 font-medium">{financialData.monthlyTrend.length} Bulan Terdata</span>
+                  </div>
+
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                          <th className="py-3 px-4">Periode Bulan</th>
+                          <th className="py-3 px-4 text-right">Penjualan Bersih (Net)</th>
+                          <th className="py-3 px-4 text-right">HPP (COGS)</th>
+                          <th className="py-3 px-4 text-right">Laba Kotor (GP)</th>
+                          <th className="py-3 px-4 text-center">Margin GP %</th>
+                          <th className="py-3 px-4 text-right">Beban OPEX</th>
+                          <th className="py-3 px-4 text-right">Laba Usaha (EBIT)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {financialData.monthlyTrend.map((m: any, idx: number) => (
+                          <tr key={idx} className="hover:bg-slate-50">
+                            <td className="py-2.5 px-4 font-bold text-slate-900 font-mono">📅 {m.period_ym}</td>
+                            <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-900">{formatIDR(m.net_revenue)}</td>
+                            <td className="py-2.5 px-4 text-right font-mono text-rose-700">{formatIDR(m.cogs)}</td>
+                            <td className="py-2.5 px-4 text-right font-mono font-bold text-emerald-700">{formatIDR(m.gross_profit)}</td>
+                            <td className="py-2.5 px-4 text-center">
+                              <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                {m.gp_margin.toFixed(1)}%
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-4 text-right font-mono text-amber-700">{formatIDR(m.opex)}</td>
+                            <td className={`py-2.5 px-4 text-right font-mono font-bold ${m.ebit >= 0 ? 'text-indigo-700' : 'text-rose-600'}`}>
+                              {formatIDR(m.ebit)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB 4: TRIAL BALANCE AKUN LENGKAP */}
+              {financialSubTab === 'tb' && financialData && (
+                <div className="space-y-4">
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center space-x-3 flex-1 min-w-[280px]">
+                      <div className="relative flex-1">
+                        <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                        <input
+                          type="text"
+                          value={tbSearch}
+                          onChange={(e) => setTbSearch(e.target.value)}
+                          placeholder="Cari kode akun atau nama akun..."
+                          className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-1.5 flex-wrap">
+                      {['', '1100', '1200', '2100', '4100', '5000', '7000', '8100', '8200', '8300', '8400', '8500', '9000'].map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => setTbSeriesFilter(s)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                            tbSeriesFilter === s
+                              ? 'bg-slate-900 text-white'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                        >
+                          {s === '' ? 'Semua Seri' : `Seri ${s}`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                          <th className="py-3 px-3">Kode Akun</th>
+                          <th className="py-3 px-3">Nama Akun</th>
+                          <th className="py-3 px-3">Kategori</th>
+                          <th className="py-3 px-3 text-right">Saldo Awal</th>
+                          <th className="py-3 px-3 text-right">Mutasi Debet</th>
+                          <th className="py-3 px-3 text-right">Mutasi Kredit</th>
+                          <th className="py-3 px-3 text-right">Saldo Akhir</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {financialData.trialBalanceAccounts
+                          .filter((a: any) => {
+                            const matchSearch = !tbSearch || 
+                              a.account_code.toLowerCase().includes(tbSearch.toLowerCase()) ||
+                              a.account_name.toLowerCase().includes(tbSearch.toLowerCase());
+                            const matchSeries = !tbSeriesFilter || a.account_series === tbSeriesFilter;
+                            return matchSearch && matchSeries;
+                          })
+                          .slice(0, 100)
+                          .map((a: any, idx: number) => (
+                            <tr key={idx} className="hover:bg-slate-50">
+                              <td className="py-2 px-3 font-mono font-bold text-slate-900">{a.account_code}</td>
+                              <td className="py-2 px-3 font-medium text-slate-800">{a.account_name}</td>
+                              <td className="py-2 px-3 text-slate-500">{a.account_category}</td>
+                              <td className="py-2 px-3 text-right font-mono text-slate-600">{formatIDR(a.beginning)}</td>
+                              <td className="py-2 px-3 text-right font-mono text-blue-700">{formatIDR(a.debet)}</td>
+                              <td className="py-2 px-3 text-right font-mono text-amber-700">{formatIDR(a.credit)}</td>
+                              <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">{formatIDR(a.ending)}</td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
